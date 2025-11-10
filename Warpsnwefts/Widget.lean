@@ -41,57 +41,52 @@ def weaveWidget : Component WeaveWidgetProps where
     import * as React from 'react';
     const e = React.createElement;
     const PIXEL_LIMIT = 400;
-    function renderSvg(props) {
-      const grid = props.colorGrid ?? [];
-      const rows = grid.length;
-      const cols = rows > 0 ? (grid[0]?.length ?? 0) : 0;
-      if (rows === 0 || cols === 0) {
-        return e('div', { className: 'weave-widget__canvas--empty' }, 'No weave data');
-      }
-      const tile = Math.max(1, props.tilePixels ?? 2);
-      const patchSize = rows * tile;
-      let repeats = Math.max(1, Math.floor(PIXEL_LIMIT / patchSize));
-      const totalRows = rows * repeats;
-      const totalCols = cols * repeats;
-      const width = totalCols * tile;
-      const height = totalRows * tile;
-      const svgWidth = Math.min(width, PIXEL_LIMIT);
-      const svgHeight = Math.min(height, PIXEL_LIMIT);
-      const elements = [];
-      for (let ry = 0; ry < repeats; ry++) {
-        for (let y = 0; y < rows; y++) {
-          const rowColors = grid[y] ?? [];
-          for (let rx = 0; rx < repeats; rx++) {
-            for (let x = 0; x < cols; x++) {
-              const fill = rowColors[x] ?? '#000000';
-              const px = (rx * cols + x) * tile;
-              const py = (ry * rows + y) * tile;
-              elements.push(e('rect', {
-                key: `${ry}-${y}-${rx}-${x}`,
-                x: px,
-                y: py,
-                width: tile,
-                height: tile,
-                fill
-              }));
-            }
+    function PatternCanvas({ grid, tilePixels, className, emptyLabel }) {
+      const canvasRef = React.useRef(null);
+      React.useEffect(() => {
+        const safeGrid = Array.isArray(grid) ? grid : [];
+        const rows = safeGrid.length;
+        const cols = rows > 0 ? (safeGrid[0]?.length ?? 0) : 0;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.width = PIXEL_LIMIT;
+        canvas.height = PIXEL_LIMIT;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, PIXEL_LIMIT, PIXEL_LIMIT);
+        if (rows === 0 || cols === 0) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, PIXEL_LIMIT, PIXEL_LIMIT);
+          ctx.fillStyle = '#555555';
+          ctx.font = '14px sans-serif';
+          ctx.fillText(emptyLabel ?? 'No data', 12, 24);
+          return;
+        }
+        const tile = Math.max(1, tilePixels ?? 1);
+        for (let py = 0; py < PIXEL_LIMIT; py += tile) {
+          const rowIdx = Math.floor(py / tile) % rows;
+          const rowColors = safeGrid[rowIdx] ?? [];
+          for (let px = 0; px < PIXEL_LIMIT; px += tile) {
+            const colIdx = Math.floor(px / tile) % cols;
+            const fill = rowColors[colIdx] ?? '#000000';
+            ctx.fillStyle = fill;
+            ctx.fillRect(px, py, tile, tile);
           }
         }
-      }
-      return e('svg', {
-        className: 'weave-widget__canvas',
-        width: svgWidth,
-        height: svgHeight,
-        viewBox: `0 0 ${width} ${height}`,
-        shapeRendering: 'crispEdges'
-      }, elements);
+      }, [grid, tilePixels, emptyLabel]);
+      return e('canvas', { ref: canvasRef, className, width: PIXEL_LIMIT, height: PIXEL_LIMIT });
     }
     export default function(props) {
       const message = props.description ?? 'A weave.';
       return e('div', { className: 'weave-widget' },
         e('div', null, `Weave (size ${props.size}): ${message}`),
         e('pre', { className: 'weave-widget__pattern' }, props.pattern ?? ''),
-        renderSvg(props));
+        e(PatternCanvas, {
+          grid: props.colorGrid ?? [],
+          tilePixels: props.tilePixels ?? 1,
+          className: 'weave-widget__canvas',
+          emptyLabel: 'No weave data'
+        }));
     }
   "
 
@@ -101,50 +96,40 @@ def coloredWeaveWidget : Component ColoredWeaveWidgetProps where
     import * as React from 'react';
     const e = React.createElement;
     const PIXEL_LIMIT = 400;
-    function renderSvg(props) {
-      const grid = props.colorGrid ?? [];
-      const rows = grid.length;
-      const cols = rows > 0 ? (grid[0]?.length ?? 0) : 0;
-      if (rows === 0 || cols === 0) {
-        return e('div', { className: 'colored-weave-widget__canvas--empty' }, 'No colored weave data');
-      }
-      const tile = Math.max(1, props.tilePixels ?? 2);
-      const patchSize = rows * tile;
-      let repeats = Math.max(1, Math.floor(PIXEL_LIMIT / patchSize));
-      const totalRows = rows * repeats;
-      const totalCols = cols * repeats;
-      const width = totalCols * tile;
-      const height = totalRows * tile;
-      const elements = [];
-      for (let ry = 0; ry < repeats; ry++) {
-        for (let y = 0; y < rows; y++) {
-          const rowColors = grid[y] ?? [];
-          for (let rx = 0; rx < repeats; rx++) {
-            for (let x = 0; x < cols; x++) {
-              const fill = rowColors[x] ?? '#000000';
-              const px = (rx * cols + x) * tile;
-              const py = (ry * rows + y) * tile;
-              elements.push(e('rect', {
-                key: `${ry}-${y}-${rx}-${x}`,
-                x: px,
-                y: py,
-                width: tile,
-                height: tile,
-                fill
-              }));
-            }
+    function PatternCanvas({ grid, tilePixels, className, emptyLabel }) {
+      const canvasRef = React.useRef(null);
+      React.useEffect(() => {
+        const safeGrid = Array.isArray(grid) ? grid : [];
+        const rows = safeGrid.length;
+        const cols = rows > 0 ? (safeGrid[0]?.length ?? 0) : 0;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.width = PIXEL_LIMIT;
+        canvas.height = PIXEL_LIMIT;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, PIXEL_LIMIT, PIXEL_LIMIT);
+        if (rows === 0 || cols === 0) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, PIXEL_LIMIT, PIXEL_LIMIT);
+          ctx.fillStyle = '#555555';
+          ctx.font = '14px sans-serif';
+          ctx.fillText(emptyLabel ?? 'No data', 12, 24);
+          return;
+        }
+        const tile = Math.max(1, tilePixels ?? 1);
+        for (let py = 0; py < PIXEL_LIMIT; py += tile) {
+          const rowIdx = Math.floor(py / tile) % rows;
+          const rowColors = safeGrid[rowIdx] ?? [];
+          for (let px = 0; px < PIXEL_LIMIT; px += tile) {
+            const colIdx = Math.floor(px / tile) % cols;
+            const fill = rowColors[colIdx] ?? '#000000';
+            ctx.fillStyle = fill;
+            ctx.fillRect(px, py, tile, tile);
           }
         }
-      }
-      const svgWidth = Math.min(width, PIXEL_LIMIT);
-      const svgHeight = Math.min(height, PIXEL_LIMIT);
-      return e('svg', {
-        className: 'colored-weave-widget__canvas',
-        width: svgWidth,
-        height: svgHeight,
-        viewBox: `0 0 ${width} ${height}`,
-        shapeRendering: 'crispEdges'
-      }, elements);
+      }, [grid, tilePixels, emptyLabel]);
+      return e('canvas', { ref: canvasRef, className, width: PIXEL_LIMIT, height: PIXEL_LIMIT });
     }
     export default function(props) {
       const message = props.description ?? 'A colored weave.';
@@ -152,7 +137,12 @@ def coloredWeaveWidget : Component ColoredWeaveWidgetProps where
         e('div', null,
           `Colored weave (size ${props.size}, warp colors ${props.warpPalette}, weft colors ${props.weftPalette}): ${message}`),
         e('pre', { className: 'colored-weave-widget__pattern' }, props.pattern ?? ''),
-        renderSvg(props));
+        e(PatternCanvas, {
+          grid: props.colorGrid ?? [],
+          tilePixels: props.tilePixels ?? 1,
+          className: 'colored-weave-widget__canvas',
+          emptyLabel: 'No colored weave data'
+        }));
     }
   "
 
@@ -225,9 +215,7 @@ private def buildColorGrid (size : Nat) (value : ZMod size → ZMod size → Str
 
 private def zmodIndex : (n : Nat) → ZMod n → Nat
   | 0, _ => 0
-  | Nat.succ m, x =>
-      haveI : NeZero (Nat.succ m) := ⟨Nat.succ_ne_zero _⟩
-      x.val
+  | Nat.succ _, x => x.val
 
 private def weaveColorGrid (size : Nat) (w : Weave size) : Array (Array String) :=
   buildColorGrid size fun i j => if w (i, j) = 0 then plainWarpColor else plainWeftColor

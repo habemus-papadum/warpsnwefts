@@ -136,7 +136,45 @@ theorem odd_weave_not_balanced {n : ℕ} [NeZero n] (hn : Odd n) (w : Weave n) :
   have sum_equals_total : Fintype.card (warpOnTopPositions w) +
                           Fintype.card (weftOnTopPositions w) = n ^ 2 := by
     -- Every position is either warp-on-top or weft-on-top (disjoint partition)
-    sorry
+    classical
+    -- Convert the complement `{p // ¬ w p = 0}` to the weft positions.
+    have complEquivWeft :
+        { p : ZMod n × ZMod n // ¬ w p = 0 } ≃ weftOnTopPositions w := by
+      refine
+        { toFun := ?_,
+          invFun := ?_,
+          left_inv := ?_,
+          right_inv := ?_ }
+      · intro p
+        refine ⟨p.1, ?_⟩
+        exact Or.resolve_left (partition p.1) p.2
+      · intro p
+        refine ⟨p.1, ?_⟩
+        intro h0
+        have : (0 : ZMod 2) = 1 := by
+          calc
+            (0 : ZMod 2) = w p.1 := by simp [h0]
+            _ = 1 := by simp [p.2]
+        exact (by decide : (0 : ZMod 2) ≠ 1) this
+      · intro p
+        apply Subtype.ext
+        rfl
+      · intro p
+        apply Subtype.ext
+        rfl
+    -- Combine the partition equivalence with `Equiv.sumCompl` to relate counts.
+    have totalEquiv :
+        warpOnTopPositions w ⊕ weftOnTopPositions w ≃ ZMod n × ZMod n :=
+      (Equiv.sumCongr (Equiv.refl _) complEquivWeft.symm).trans
+        (Equiv.sumCompl fun p : ZMod n × ZMod n => w p = 0)
+    have card_sum := Fintype.card_congr totalEquiv
+    -- Translate the cardinality equality into the desired numeric identity.
+    calc
+      Fintype.card (warpOnTopPositions w) + Fintype.card (weftOnTopPositions w)
+          = Fintype.card (warpOnTopPositions w ⊕ weftOnTopPositions w) := by
+            simp [Fintype.card_sum]
+        _ = Fintype.card (ZMod n × ZMod n) := card_sum
+        _ = n ^ 2 := total_positions
 
   -- Therefore, 2 * card(warpOnTopPositions) = n²
   have double_warp : 2 * Fintype.card (warpOnTopPositions w) = n ^ 2 := by

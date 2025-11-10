@@ -77,17 +77,32 @@ private def saveColoredWeaveWidget (props : ColoredWeaveWidgetProps) (stx : Synt
   liftCoreM <|
     Widget.savePanelWidgetInfo coloredWeaveWidget.javascriptHash (rpcEncode props) stx
 
+private def runTermElab {α} (t : Term) (k : Expr → MetaM α) : CommandElabM α :=
+  liftTermElabM do
+    let e ← Term.elabTerm t none
+    Term.synthesizeSyntheticMVarsNoPostponing
+    let e ← instantiateMVars e
+    k e
+
+private def inferWeaveSize (t : Term) : CommandElabM Nat :=
+  runTermElab t fun e => do
+    let ty ← inferType e
+    let args ← expectConstApp ``Warpsnwefts.Weave 1 ty
+    evalNatExpr args[0]!
+
+private def inferColoredWeaveSizes (t : Term) :
+    CommandElabM (Nat × Nat × Nat) :=
+  runTermElab t fun e => do
+    let ty ← inferType e
+    let args ← expectConstApp ``Warpsnwefts.ColoredWeave 3 ty
+    pure (← evalNatExpr args[0]!, ← evalNatExpr args[1]!, ← evalNatExpr args[2]!)
+
 syntax (name := weaveWidgetCmd) "#weave_widget " term : command
 
 @[command_elab weaveWidgetCmd]
 def elabWeaveWidget : CommandElab
   | stx@`(#weave_widget $t) => do
-      let e ← Term.elabTerm t none
-      Term.synthesizeSyntheticMVarsNoPostponing
-      let e ← instantiateMVars e
-      let ty ← inferType e
-      let args ← expectConstApp ``Warpsnwefts.Weave 1 ty
-      let size ← evalNatExpr args[0]!
+      let size ← inferWeaveSize t
       saveWeaveWidget
         { size
           description := s!"The weave has period {size}×{size}." }
@@ -99,14 +114,7 @@ syntax (name := coloredWeaveWidgetCmd) "#colored_weave_widget " term : command
 @[command_elab coloredWeaveWidgetCmd]
 def elabColoredWeaveWidget : CommandElab
   | stx@`(#colored_weave_widget $t) => do
-      let e ← Term.elabTerm t none
-      Term.synthesizeSyntheticMVarsNoPostponing
-      let e ← instantiateMVars e
-      let ty ← inferType e
-      let args ← expectConstApp ``Warpsnwefts.ColoredWeave 3 ty
-      let base ← evalNatExpr args[0]!
-      let warp ← evalNatExpr args[1]!
-      let weft ← evalNatExpr args[2]!
+      let (base, warp, weft) ← inferColoredWeaveSizes t
       saveColoredWeaveWidget
         { size := base
           warpPalette := warp

@@ -19,6 +19,7 @@ def sampleColoredWeave : ColoredWeave 4 3 2 where
   warpColoring := fun _ => 0
   weftColoring := fun _ => 1
 
+
 #weave_widget sampleWeave
 
 #colored_weave_widget sampleColoredWeave

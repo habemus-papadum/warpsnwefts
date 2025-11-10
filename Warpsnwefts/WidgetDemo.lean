@@ -17,6 +17,12 @@ def sampleWeave : Weave 4 := fun p =>
   let j := p.2.val
   if (i + j) % 2 = 0 then 0 else 1
 
+def twill : Weave 4 := fun p =>
+  let i := p.1.val
+  let j := p.2.val
+  if (i + j) % 4 < 2 then 0 else 1
+
+
 def sampleColoredWeave : ColoredWeave 4 3 2 where
   weave := sampleWeave
   warpColoring := fun i => (i.val : ZMod 3)
@@ -24,6 +30,9 @@ def sampleColoredWeave : ColoredWeave 4 3 2 where
 
 
 #weave_widget sampleWeave
+
+#weave_widget twill
+
 
 #colored_weave_widget sampleColoredWeave
 

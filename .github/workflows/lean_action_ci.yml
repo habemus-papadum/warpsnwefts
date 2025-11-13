@@ -10,6 +10,9 @@ permissions:
   contents: read # Read access to repository contents
   pages: write # Write access to GitHub Pages
   id-token: write # Write access to ID tokens
+environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
 jobs:
   build:
@@ -18,4 +21,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: leanprover/lean-action@v1
+      - name: Build book-builder
+        run: |
+          lake build book-builder
+      - name: Generate HTML
+        run: |
+          lake exe book-builder
+      - uses: actions/configure-pages@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_out/html-multi
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+          
 

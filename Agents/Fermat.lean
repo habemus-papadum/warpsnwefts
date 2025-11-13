@@ -1,6 +1,6 @@
 import Mathlib
 
-namespace Warpsnwefts
+namespace Agents
 
 open Nat ZMod
 
@@ -56,4 +56,4 @@ theorem fermat_little_theorem (p : ℕ) (a : ℕ) (hp : p.Prime) (ha : ¬ p ∣ 
   simp only [Nat.cast_pow, Nat.cast_one]
   exact pow_eq_one
 
-end Warpsnwefts
+end Agents

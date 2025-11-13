@@ -1,6 +1,6 @@
-import Warpsnwefts.Weave
-import Warpsnwefts.Weave.Library
-import Warpsnwefts.Widget
+import WarpsnWefts.Weave
+import WarpsnWefts.Patterns
+import WarpsnWefts.Widget
 
 /-!
 # Widget demo
@@ -9,9 +9,10 @@ This file demonstrates the dummy weave widgets by instantiating concrete weaves
 and invoking the custom commands defined in `Warpsnwefts.Widget`.
 -/
 
-namespace Warpsnwefts
+namespace WarpsnWefts
 
 open scoped BigOperators
+
 
 def sampleWeave : Weave 4 := fun p =>
   let i := p.1.val
@@ -24,16 +25,16 @@ def twill : Weave 4 := fun p =>
   if (i + j) % 4 < 2 then 0 else 1
 
 def plainDemo : Weave 8 :=
-  Weave.Library.Patterns.plain (n := 8)
+  Patterns.plain (n := 8)
 
 def risingTwillDemo : Weave 8 :=
-  Weave.Library.Patterns.risingTwill (n := 8) (over := 3) (under := 1)
+  Patterns.risingTwill (n := 8) (over := 3) (under := 1)
 
 def herringboneDemo : Weave 12 :=
-  Weave.Library.Patterns.herringbone (n := 12) (segmentLen := 3) (over := 2) (under := 2)
+  Patterns.herringbone (n := 12) (segmentLen := 3) (over := 2) (under := 2)
 
 def diamondDemo : Weave 24 :=
-  Weave.Library.Patterns.diamond (n := 24) (halfDiagonal := 5)
+  Patterns.diamond (n := 24) (halfDiagonal := 5)
 
 def sampleColoredWeave : ColoredWeave 4 3 2 where
   weave := sampleWeave
@@ -56,4 +57,4 @@ def sampleColoredWeave : ColoredWeave 4 3 2 where
 
 #colored_weave_widget sampleColoredWeave
 
-end Warpsnwefts
+end WarpsnWefts

@@ -9,7 +9,7 @@ is encoded by a function `(ℤ / nℤ × ℤ / nℤ) → ℤ / 2ℤ` which recor
 warp (`0`) or the weft (`1`) thread is on top at a given intersection.
 -/
 
-namespace Warpsnwefts
+namespace WarpsnWefts
 
 open scoped BigOperators
 
@@ -199,4 +199,4 @@ theorem odd_weave_not_balanced {n : ℕ} [NeZero n] (hn : Odd n) (w : Weave n) :
 
 end Weave
 
-end Warpsnwefts
+end WarpsnWefts

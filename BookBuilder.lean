@@ -1,5 +1,5 @@
 import VersoManual
-import Warpsnwefts.Book
+import Book.Everything
 
 open Verso.Genre Manual
 open Verso Code External

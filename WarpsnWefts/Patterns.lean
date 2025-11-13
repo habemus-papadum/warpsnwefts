@@ -1,8 +1,6 @@
-import Warpsnwefts.Weave
+import WarpsnWefts.Weave
 
-namespace Warpsnwefts
-namespace Weave
-namespace Library
+namespace WarpsnWefts
 namespace Patterns
 
 open Nat
@@ -74,6 +72,4 @@ def diamond (halfDiagonal : ℕ) : Weave n :=
     if dx + dy ≤ half then 0 else 1
 
 end Patterns
-end Library
-end Weave
-end Warpsnwefts
+end WarpsnWefts

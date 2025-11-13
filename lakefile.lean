@@ -13,8 +13,12 @@ require "leanprover-community" / "mathlib"
 require verso from git "https://github.com/leanprover/verso.git"@"v4.25.0-rc2"
 
 @[default_target]
-lean_lib «Warpsnwefts» where
+lean_lib «WarpsnWefts» where
   -- add any library configuration options here
 
-lean_exe «Book» where
-  root := `Book
+
+lean_lib «Agents» where
+
+
+lean_exe «build-book» where
+  root := `BookBuilder

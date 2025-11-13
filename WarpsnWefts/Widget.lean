@@ -1,7 +1,7 @@
 import Lean.Elab.Command
 import Lean.Meta
 import ProofWidgets.Component.Basic
-import Warpsnwefts.Weave
+import WarpsnWefts.Weave
 
 /-!
 # Simple widgets for weaves
@@ -11,7 +11,7 @@ widgets simply print textual summaries, which is already enough to ensure the
 data flows from Lean into the InfoView.
 -/
 
-namespace Warpsnwefts
+namespace WarpsnWefts
 
 open Lean Meta Elab Command ProofWidgets Server
 
@@ -247,7 +247,7 @@ private def analyzeWeaveTerm (t : Term) :
     CommandElabM (Nat × String × Array (Array String)) :=
   runTermElab t fun e => do
     let ty ← inferType e
-    let args ← expectConstApp ``Warpsnwefts.Weave 1 ty
+    let args ← expectConstApp ``WarpsnWefts.Weave 1 ty
     let size ← evalNatExpr args[0]!
     let (pattern, colors) ←
       (unsafe do
@@ -259,7 +259,7 @@ private def analyzeColoredWeaveTerm (t : Term) :
     CommandElabM (Nat × Nat × Nat × String × Array (Array String)) :=
   runTermElab t fun e => do
     let ty ← inferType e
-    let args ← expectConstApp ``Warpsnwefts.ColoredWeave 3 ty
+    let args ← expectConstApp ``WarpsnWefts.ColoredWeave 3 ty
     let size ← evalNatExpr args[0]!
     let warp ← evalNatExpr args[1]!
     let weft ← evalNatExpr args[2]!
@@ -314,4 +314,4 @@ def elabColoredWeaveWidget : CommandElab
 
 end Widget
 
-end Warpsnwefts
+end WarpsnWefts

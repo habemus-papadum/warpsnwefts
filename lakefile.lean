@@ -20,5 +20,8 @@ lean_lib «WarpsnWefts» where
 lean_lib «Agents» where
 
 
+lean_lib «Book» where
+
+
 lean_exe «build-book» where
   root := `BookBuilder

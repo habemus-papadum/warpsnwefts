@@ -25,4 +25,4 @@ def config : Config where
   sourceLink := some "https://github.com/habmeus-papadum/warpsnwefts"
   issueLink := some "https://github.com/habmeus-papadum/warpsnwefts/issues"
   linkTargets := fun st => st.localTargets ++ st.remoteTargets
-def main := manualMain (%doc Warpsnwefts.Book) (config := config.addKaTeX)
+def main := manualMain (%doc Book.Everything) (config := config.addKaTeX)

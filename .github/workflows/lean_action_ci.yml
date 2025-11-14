@@ -23,7 +23,7 @@ jobs:
       - uses: leanprover/lean-action@v1
       - name: Build book-builder
         run: |
-          lake build book-builder
+          lake build build-book
       - name: Generate HTML
         run: |
           lake exe build-book

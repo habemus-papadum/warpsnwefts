@@ -26,7 +26,7 @@ jobs:
           lake build book-builder
       - name: Generate HTML
         run: |
-          lake exe book-builder
+          lake exe build-book
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v3
         with:

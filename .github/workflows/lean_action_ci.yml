@@ -10,13 +10,13 @@ permissions:
   contents: read # Read access to repository contents
   pages: write # Write access to GitHub Pages
   id-token: write # Write access to ID tokens
-environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - uses: actions/checkout@v4

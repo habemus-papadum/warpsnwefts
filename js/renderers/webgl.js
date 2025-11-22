@@ -120,7 +120,8 @@ export function renderWebGL(element, definition, options) {
 
       // Look up threading value
       // Texture coords are 0.0 to 1.0. We need to map center of texel.
-      vec2 tUv = (vec2(tx, ty) + 0.5) / u_threading_size;
+      // NOTE: Swap tx/ty because threading array is [row][col] but texture is sampled [u][v]
+      vec2 tUv = (vec2(ty, tx) + 0.5) / u_threading_size;
       float isWarp = texture2D(u_threading, tUv).r; // > 0.5 means Warp
 
       vec4 color;

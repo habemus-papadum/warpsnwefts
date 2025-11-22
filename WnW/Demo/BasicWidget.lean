@@ -1,6 +1,6 @@
-import WarpsnWefts.Weave
-import WarpsnWefts.Patterns
-import WarpsnWefts.Widget
+import WnW.Weave
+import WnW.Patterns
+import WnW.Widget
 
 /-!
 # Widget demo

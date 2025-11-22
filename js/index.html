@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weave Visualization</title>
+    <style>
+        :root {
+            --bg-color: #fdf6e3;
+            --surface-color: #eee8d5;
+            --primary-color: #268bd2;
+            --text-color: #657b83;
+            --border-color: #93a1a1;
+            --input-bg: #fdf6e3;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            flex-wrap: wrap;
+        }
+
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            background: var(--surface-color);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .preview {
+            flex: 2;
+            min-width: 300px;
+            background: var(--surface-color);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+            min-height: 500px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 0.9rem;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        input, textarea, select {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        button {
+            background: var(--primary-color);
+            color: #000;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: opacity 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            align-items: end;
+        }
+        
+        .row > * {
+            /* Reset flex properties since we are using grid */
+            min-width: 0; 
+        }
+
+        #canvas-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        canvas, svg {
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Weave Visualization</h1>
+
+    <div class="container">
+        <div class="controls">
+            <div class="control-group">
+                <label for="example-select">Examples</label>
+                <select id="example-select">
+                    <option value="">Select an example...</option>
+                    <option value="plain">Plain Weave</option>
+                    <option value="twill">Twill 2/2</option>
+                    <option value="satin">Satin 5-harness</option>
+                    <option value="plaid">Classic Plaid</option>
+                    <option value="gradient">Gradient Weave</option>
+                </select>
+            </div>
+
+            <div class="row">
+                <div class="control-group">
+                    <label for="width">Width (px)</label>
+                    <input type="number" id="width" value="400">
+                </div>
+                <div class="control-group">
+                    <label for="height">Height (px)</label>
+                    <input type="number" id="height" value="400">
+                </div>
+                <div class="control-group">
+                    <label for="intersection">Intersection Size (px)</label>
+                    <input type="number" id="intersection" value="4">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="threading-func">Threading Function (i, j) => boolean</label>
+                <textarea id="threading-func">(i, j) => (i + j) % 2 === 0</textarea>
+            </div>
+
+            <div class="control-group">
+                <label for="warp-colors-func">Warp Colors Function (i) => color string</label>
+                <textarea id="warp-colors-func">(i) => i % 2 === 0 ? 'black' : 'red'</textarea>
+            </div>
+
+            <div class="control-group">
+                <label for="weft-colors-func">Weft Colors Function (j) => color string</label>
+                <textarea id="weft-colors-func">(j) => j % 2 === 0 ? 'green' : 'gold'</textarea>
+            </div>
+            
+            <div class="control-group">
+                <label for="range-limit">Pattern Range Limit (for color generation)</label>
+                <input type="number" id="range-limit" value="100" title="How many threads to generate colors for">
+            </div>
+
+            <div class="control-group">
+                <label for="backend-select">Rendering Backend</label>
+                <select id="backend-select">
+                    <option value="canvas">Canvas 2D</option>
+                    <option value="webgl">WebGL</option>
+                    <option value="webgpu">WebGPU</option>
+                    <option value="svg">SVG</option>
+                </select>
+            </div>
+
+            <button id="render-btn">Render Weave</button>
+            <button id="benchmark-btn" style="background: var(--surface-color); border: 1px solid var(--primary-color); color: var(--primary-color);">Run Benchmark</button>
+            <div id="benchmark-results" style="margin-top: 10px; font-size: 0.9rem; font-family: monospace;"></div>
+        </div>
+
+        <div class="preview" id="canvas-container">
+            <!-- Canvas will be injected here -->
+        </div>
+    </div>
+
+    <script type="module" src="./demo.js"></script>
+</body>
+</html>

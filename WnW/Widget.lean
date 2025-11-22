@@ -1,7 +1,7 @@
 import Lean.Elab.Command
 import Lean.Meta
 import ProofWidgets.Component.Basic
-import WarpsnWefts.Weave
+import WnW.Weave
 
 /-!
 # Simple widgets for weaves

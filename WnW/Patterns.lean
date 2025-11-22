@@ -1,4 +1,4 @@
-import WarpsnWefts.Weave
+import WnW.Weave
 
 namespace WarpsnWefts
 namespace Patterns

@@ -23,6 +23,8 @@ const inputs = {
     threadThickness: document.getElementById('thread-thickness'),
     borderSize: document.getElementById('border-size'),
     cutSize: document.getElementById('cut-size'),
+    zoomBg: document.getElementById('zoom-bg'),
+    zoomBorder: document.getElementById('zoom-border-color'),
     threading: document.getElementById('threading-func'),
     warpColors: document.getElementById('warp-colors-func'),
     weftColors: document.getElementById('weft-colors-func'),
@@ -150,7 +152,11 @@ async function render() {
             height,
             backend,
             display_mode: displayMode,
-            cell_size: displayMode.cellSize
+            cell_size: displayMode.cellSize,
+            zoomLoop: {
+                backgroundColor: inputs.zoomBg.value,
+                borderColor: inputs.zoomBorder.value
+            }
         };
 
         await renderWeave(canvasContainer, definition, options);
@@ -250,6 +256,9 @@ benchmarkBtn.addEventListener('click', runBenchmark);
     inputs[key].addEventListener('input', debouncedRender);
 });
 ['threading', 'warpColors', 'weftColors'].forEach(key => {
+    inputs[key].addEventListener('input', debouncedRender);
+});
+['zoomBg', 'zoomBorder'].forEach(key => {
     inputs[key].addEventListener('input', debouncedRender);
 });
 

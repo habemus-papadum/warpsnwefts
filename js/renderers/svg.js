@@ -1,9 +1,13 @@
 
+import { resolvePalette } from './utils.js';
+
 export function renderSVG(element, definition, options) {
   const { threading, warp_colors, weft_colors } = definition;
   const displayMode = options.display_mode || options.displayMode || { type: 'simple', cellSize: options.cell_size || options.cellSize || 1 };
   const intersection_size = displayMode.cellSize || 1;
   const { width, height } = options;
+  const warpPalette = resolvePalette(warp_colors);
+  const weftPalette = resolvePalette(weft_colors);
 
   // Clear container
   element.innerHTML = '';
@@ -55,8 +59,8 @@ export function renderSVG(element, definition, options) {
         const threadY = j % threadingHeight;
         const threadX = i % threadingWidth;
         const isWarpOnTop = threading[threadY][threadX];
-        const warpColor = warp_colors[i % warp_colors.length];
-        const weftColor = weft_colors[j % weft_colors.length];
+        const warpColor = warpPalette[i % warpPalette.length].css;
+        const weftColor = weftPalette[j % weftPalette.length].css;
         const topOuter = threadThickness + borderSize * 2;
 
         if (isWarpOnTop) {
@@ -78,11 +82,11 @@ export function renderSVG(element, definition, options) {
         
         let color;
         if (isWarpOnTop) {
-          const colorIndex = i % warp_colors.length;
-          color = warp_colors[colorIndex];
+          const colorIndex = i % warpPalette.length;
+          color = warpPalette[colorIndex].css;
         } else {
-          const colorIndex = j % weft_colors.length;
-          color = weft_colors[colorIndex];
+          const colorIndex = j % weftPalette.length;
+          color = weftPalette[colorIndex].css;
         }
         
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");

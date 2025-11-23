@@ -1,5 +1,5 @@
 
-import { colorToRgb } from './utils.js';
+import { resolvePalette } from './utils.js';
 
 
 
@@ -65,8 +65,8 @@ export async function renderWebGPU(element, definition, options) {
 
   const threadingHeight = threading.length;
   const threadingWidth = threading[0].length;
-  const warpColorsRgb = warp_colors.map(colorToRgb);
-  const weftColorsRgb = weft_colors.map(colorToRgb);
+  const warpPalette = resolvePalette(warp_colors);
+  const weftPalette = resolvePalette(weft_colors);
 
   // --- Data Preparation ---
 
@@ -79,14 +79,14 @@ export async function renderWebGPU(element, definition, options) {
   }
 
   // 2. Color Buffers (Float32)
-  const warpData = new Float32Array(warpColorsRgb.flat());
-  const weftData = new Float32Array(weftColorsRgb.flat());
+  const warpData = new Float32Array(warpPalette.flatMap((c) => c.norm));
+  const weftData = new Float32Array(weftPalette.flatMap((c) => c.norm));
 
   // 3. Uniforms
   const uniformData = new Float32Array([
     width, height, intersection_size, 0, // vec4 padding
     threadingWidth, threadingHeight, 0, 0,
-    warpColorsRgb.length, weftColorsRgb.length, 0, 0,
+    warpPalette.length, weftPalette.length, 0, 0,
     threadThickness, borderSize, cutSize, isInterlacing ? 1 : 0,
   ]);
 

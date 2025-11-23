@@ -1,7 +1,5 @@
 
-import { colorToRgb } from './utils.js';
-
-
+import { resolvePalette } from './utils.js';
 
 export function renderWebGL(element, definition, options) {
   const { threading, warp_colors, weft_colors } = definition;
@@ -43,8 +41,8 @@ export function renderWebGL(element, definition, options) {
 
   const threadingHeight = threading.length;
   const threadingWidth = threading[0].length;
-  const warpColorsRgb = warp_colors.map(colorToRgb);
-  const weftColorsRgb = weft_colors.map(colorToRgb);
+  const warpPalette = resolvePalette(warp_colors);
+  const weftPalette = resolvePalette(weft_colors);
 
   // --- Data Preparation ---
 
@@ -66,12 +64,12 @@ export function renderWebGL(element, definition, options) {
   // We can put them in a single texture of height 2.
   // Row 0: Warp Colors, Row 1: Weft Colors.
   // Width will be max(warp_colors.length, weft_colors.length).
-  const maxColors = Math.max(warpColorsRgb.length, weftColorsRgb.length);
+  const maxColors = Math.max(warpPalette.length, weftPalette.length);
   const colorData = new Float32Array(maxColors * 2 * 4); // RGBA floats
 
   // Fill Warp Colors (Row 0)
-  for (let i = 0; i < warpColorsRgb.length; i++) {
-    const c = warpColorsRgb[i];
+  for (let i = 0; i < warpPalette.length; i++) {
+    const c = warpPalette[i].norm;
     const offset = i * 4;
     colorData[offset] = c[0];
     colorData[offset + 1] = c[1];
@@ -80,8 +78,8 @@ export function renderWebGL(element, definition, options) {
   }
 
   // Fill Weft Colors (Row 1)
-  for (let i = 0; i < weftColorsRgb.length; i++) {
-    const c = weftColorsRgb[i];
+  for (let i = 0; i < weftPalette.length; i++) {
+    const c = weftPalette[i].norm;
     const offset = (maxColors + i) * 4; // Start of second row
     colorData[offset] = c[0];
     colorData[offset + 1] = c[1];
@@ -254,8 +252,8 @@ export function renderWebGL(element, definition, options) {
   gl.uniform1f(locSize, intersection_size);
   gl.uniform2f(locThreadingSize, threadingWidth, threadingHeight);
   gl.uniform2f(locColorsSize, maxColors, 2);
-  gl.uniform1f(locWarpCount, warpColorsRgb.length);
-  gl.uniform1f(locWeftCount, weftColorsRgb.length);
+  gl.uniform1f(locWarpCount, warpPalette.length);
+  gl.uniform1f(locWeftCount, weftPalette.length);
   gl.uniform1i(locThreadingTex, 0); // Texture unit 0
   gl.uniform1i(locColorsTex, 1);    // Texture unit 1
 

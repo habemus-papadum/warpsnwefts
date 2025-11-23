@@ -1,4 +1,6 @@
 
+import { resolvePalette } from './utils.js';
+
 const wrapIndex = (n, mod) => ((n % mod) + mod) % mod;
 
 export function renderCanvas(element, definition, options) {
@@ -36,12 +38,15 @@ export function renderCanvas(element, definition, options) {
     return;
   }
 
+  const warpPalette = resolvePalette(warp_colors);
+  const weftPalette = resolvePalette(weft_colors);
+
   drawPattern(ctx, {
     width,
     height,
     threading,
-    warp_colors,
-    weft_colors,
+    warpPalette,
+    weftPalette,
     intersectionSize: intersection_size,
     displayMode,
     offsetWarp: 0,
@@ -76,8 +81,8 @@ export function renderCanvas(element, definition, options) {
       width: zoom.radius * 2,
       height: zoom.radius * 2,
       threading,
-      warp_colors,
-      weft_colors,
+      warpPalette,
+      weftPalette,
       intersectionSize: scaledCell,
       displayMode: scaledMode,
       offsetWarp: startWarp,
@@ -101,8 +106,8 @@ function drawPattern(ctx, params) {
     width,
     height,
     threading,
-    warp_colors,
-    weft_colors,
+    warpPalette,
+    weftPalette,
     intersectionSize,
     displayMode,
     offsetWarp,
@@ -120,8 +125,8 @@ function drawPattern(ctx, params) {
       width,
       height,
       threading,
-      warp_colors,
-      weft_colors,
+      warpPalette,
+      weftPalette,
       intersectionSize,
       threadThickness: displayMode.thread_thickness ?? 6,
       borderSize: displayMode.border_size ?? 1,
@@ -139,15 +144,9 @@ function drawPattern(ctx, params) {
       
       const isWarpOnTop = threading[threadY][threadX];
       
-      let color;
-      if (isWarpOnTop) {
-        const colorIndex = wrapIndex(i + offsetWarp, warp_colors.length);
-        color = warp_colors[colorIndex];
-      } else {
-        const colorIndex = wrapIndex(j + offsetWeft, weft_colors.length);
-        color = weft_colors[colorIndex];
-      }
-      
+      const color = isWarpOnTop
+        ? warpPalette[wrapIndex(i + offsetWarp, warpPalette.length)].css
+        : weftPalette[wrapIndex(j + offsetWeft, weftPalette.length)].css;
       ctx.fillStyle = color;
       ctx.fillRect(
         i * intersectionSize, 
@@ -159,7 +158,7 @@ function drawPattern(ctx, params) {
   }
 }
 
-function renderInterlacing({ ctx, width, height, threading, warp_colors, weft_colors, intersectionSize, threadThickness, borderSize, cutSize, offsetWarp, offsetWeft }) {
+function renderInterlacing({ ctx, width, height, threading, warpPalette, weftPalette, intersectionSize, threadThickness, borderSize, cutSize, offsetWarp, offsetWeft }) {
   const threadingHeight = threading.length;
   const threadingWidth = threading[0].length;
   const numWarps = Math.ceil(width / intersectionSize);
@@ -175,8 +174,8 @@ function renderInterlacing({ ctx, width, height, threading, warp_colors, weft_co
       const threadX = wrapIndex(i + offsetWarp, threadingWidth);
       const isWarpOnTop = threading[threadY][threadX];
 
-      const warpColor = warp_colors[wrapIndex(i + offsetWarp, warp_colors.length)];
-      const weftColor = weft_colors[wrapIndex(j + offsetWeft, weft_colors.length)];
+      const warpColor = warpPalette[wrapIndex(i + offsetWarp, warpPalette.length)].css;
+      const weftColor = weftPalette[wrapIndex(j + offsetWeft, weftPalette.length)].css;
 
       if (isWarpOnTop) {
         const topOuter = threadThickness + borderSize * 2;

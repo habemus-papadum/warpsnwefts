@@ -14,11 +14,39 @@ import { renderWebGPU } from './renderers/webgpu.js';
  * @param {Object} options - Visualization options.
  * @param {number} options.width - Total width of the image in pixels.
  * @param {number} options.height - Total height of the image in pixels.
- * @param {number} [options.intersection_size=1] - Size of each thread intersection in pixels.
+ * @param {number} [options.cell_size=1] - Size of each cell/intersection in pixels.
  * @param {string} [options.backend='canvas'] - Rendering backend: 'canvas', 'webgl', 'webgpu', 'svg'.
  */
 export async function renderWeave(container, definition, options) {
   const backend = options.backend || 'canvas';
+
+  const normalizeDisplayMode = (opts) => {
+    const baseSize = opts.cell_size ?? opts.cellSize ?? (opts.display_mode ? opts.display_mode.cellSize : undefined) ?? 1;
+    const mode = opts.display_mode || opts.displayMode || { type: 'simple', cellSize: baseSize };
+    if (mode.type === 'interlacing') {
+      const cellSize = mode.cellSize ?? baseSize ?? 10;
+      return {
+        ...mode,
+        type: 'interlacing',
+        cellSize,
+        thread_thickness: mode.thread_thickness ?? 6,
+        border_size: mode.border_size ?? 1,
+        cut_size: mode.cut_size ?? 1,
+      };
+    }
+    const cellSize = mode.cellSize ?? baseSize ?? 1;
+    return { type: 'simple', cellSize };
+  };
+
+  const displayMode = normalizeDisplayMode(options);
+  const optsWithMode = {
+    ...options,
+    display_mode: displayMode,
+    displayMode,
+    cell_size: displayMode.cellSize,
+    cellSize: displayMode.cellSize,
+  };
+  const effectiveBackend = backend;
 
   // Helper to handle Canvas lifecycle
   const getCanvas = (contextType) => {
@@ -43,28 +71,28 @@ export async function renderWeave(container, definition, options) {
     return canvas;
   };
 
-  switch (backend) {
+  switch (effectiveBackend) {
     case 'canvas': {
       const canvas = getCanvas('2d');
-      return renderCanvas(canvas, definition, options);
+      return renderCanvas(canvas, definition, optsWithMode);
     }
     case 'webgl': {
       const canvas = getCanvas('webgl');
-      return renderWebGL(canvas, definition, options);
+      return renderWebGL(canvas, definition, optsWithMode);
     }
     case 'webgpu': {
       const canvas = getCanvas('webgpu');
-      return renderWebGPU(canvas, definition, options);
+      return renderWebGPU(canvas, definition, optsWithMode);
     }
     case 'svg': {
       // Remove Canvas if present
       const canvas = container.querySelector('canvas');
       if (canvas) canvas.remove();
-      return renderSVG(container, definition, options);
+      return renderSVG(container, definition, optsWithMode);
     }
     default:
       console.warn(`Unknown backend '${backend}', falling back to canvas.`);
       const canvas = getCanvas('2d');
-      return renderCanvas(canvas, definition, options);
+      return renderCanvas(canvas, definition, optsWithMode);
   }
 }

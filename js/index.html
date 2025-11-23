@@ -162,8 +162,30 @@
                     <input type="number" id="height" value="400">
                 </div>
                 <div class="control-group">
-                    <label for="intersection">Intersection Size (px)</label>
-                    <input type="number" id="intersection" value="4">
+                    <label for="display-mode">Display Mode</label>
+                    <select id="display-mode">
+                        <option value="simple">Simple (pixel grid)</option>
+                        <option value="interlacing">Interlacing (zoomed threads)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="control-group">
+                    <label for="cell-size">Cell Size (px) <span id="cell-size-val" style="font-weight:600;">10</span></label>
+                    <input type="range" id="cell-size" min="2" max="200" step="1" value="10">
+                </div>
+                <div class="control-group interlacing-only">
+                    <label for="thread-thickness">Thread Thickness (px) <span id="thread-thickness-val" style="font-weight:600;">6</span></label>
+                    <input type="range" id="thread-thickness" min="1" max="100" step="1" value="6">
+                </div>
+                <div class="control-group interlacing-only">
+                    <label for="border-size">Thread Border (px) <span id="border-size-val" style="font-weight:600;">1</span></label>
+                    <input type="range" id="border-size" min="0" max="40" step="1" value="1">
+                </div>
+                <div class="control-group interlacing-only">
+                    <label for="cut-size">Cut Size (px) <span id="cut-size-val" style="font-weight:600;">1</span></label>
+                    <input type="range" id="cut-size" min="0" max="20" step="1" value="1">
                 </div>
             </div>
 
@@ -183,8 +205,8 @@
             </div>
             
             <div class="control-group">
-                <label for="range-limit">Pattern Range Limit (for color generation)</label>
-                <input type="number" id="range-limit" value="100" title="How many threads to generate colors for">
+                <label for="range-limit">Pattern Range Limit (for color generation) <span id="range-limit-val" style="font-weight:600;">100</span></label>
+                <input type="range" id="range-limit" min="2" max="400" step="1" value="100" title="How many threads to generate colors for">
             </div>
 
             <div class="control-group">
@@ -197,7 +219,6 @@
                 </select>
             </div>
 
-            <button id="render-btn">Render Weave</button>
             <button id="benchmark-btn" style="background: var(--surface-color); border: 1px solid var(--primary-color); color: var(--primary-color);">Run Benchmark</button>
             <div id="benchmark-results" style="margin-top: 10px; font-size: 0.9rem; font-family: monospace;"></div>
         </div>

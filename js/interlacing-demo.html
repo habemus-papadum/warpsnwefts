@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interlacing Debug Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f7f7f7;
+      color: #222;
+      margin: 0;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      padding: 20px;
+      width: 360px;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    label {
+      font-weight: 600;
+      min-width: 140px;
+    }
+    select {
+      padding: 6px 10px;
+      font-size: 14px;
+    }
+    #preview {
+      display: inline-flex;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 12px;
+      background: #fafafa;
+    }
+    canvas {
+      image-rendering: pixelated;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="row">
+      <label for="thread-order">Thread on top</label>
+      <select id="thread-order">
+        <option value="warp">Warp (horizontal) on top</option>
+        <option value="weft">Weft (vertical) on top</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="backend-select">Backend</label>
+      <select id="backend-select">
+        <option value="canvas">Canvas</option>
+        <option value="webgl">WebGL</option>
+        <option value="webgpu">WebGPU</option>
+        <option value="svg">SVG</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="cell-size">Cell size (px)</label>
+      <input type="range" id="cell-size" min="20" max="200" step="1" value="100">
+      <span id="cell-size-val">100</span>
+    </div>
+    <div class="row">
+      <label for="thread-thickness">Thread thickness (px)</label>
+      <input type="range" id="thread-thickness" min="5" max="180" step="1" value="17">
+      <span id="thread-thickness-val">17</span>
+    </div>
+    <div class="row">
+      <label for="border-size">Border (px)</label>
+      <input type="range" id="border-size" min="0" max="40" step="1" value="3">
+      <span id="border-size-val">3</span>
+    </div>
+    <div class="row">
+      <label for="cut-size">Cut size (px)</label>
+      <input type="range" id="cut-size" min="0" max="15" step="1" value="3">
+      <span id="cut-size-val">3</span>
+    </div>
+    <div class="row">
+      <label>Preview</label>
+      <div id="preview"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./interlacing-demo.js"></script>
+</body>
+</html>

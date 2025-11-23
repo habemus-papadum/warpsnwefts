@@ -4,7 +4,7 @@
   "description": "",
   "main": "demo.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
@@ -17,6 +17,11 @@
     "express": "^5.1.0"
   },
   "devDependencies": {
-    "vite": "^7.2.4"
+    "@vitest/browser": "^4.0.13",
+    "@vitest/browser-playwright": "^4.0.13",
+    "happy-dom": "^20.0.10",
+    "playwright": "^1.56.1",
+    "vite": "^7.2.4",
+    "vitest": "^4.0.13"
   }
 }

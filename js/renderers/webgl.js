@@ -5,7 +5,13 @@ import { colorToRgb } from './utils.js';
 
 export function renderWebGL(element, definition, options) {
   const { threading, warp_colors, weft_colors } = definition;
-  const { width, height, intersection_size = 1 } = options;
+  const displayMode = options.display_mode || options.displayMode || { type: 'simple', cellSize: options.cell_size || options.cellSize || 1 };
+  const intersection_size = displayMode.cellSize || 1;
+  const isInterlacing = displayMode.type === 'interlacing';
+  const threadThickness = isInterlacing ? (displayMode.thread_thickness ?? 6) : 0;
+  const borderSize = isInterlacing ? (displayMode.border_size ?? 1) : 0;
+  const cutSize = isInterlacing ? (displayMode.cut_size ?? 1) : 0;
+  const { width, height } = options;
 
   let canvas;
   if (element.tagName === 'CANVAS') {
@@ -43,15 +49,18 @@ export function renderWebGL(element, definition, options) {
   // --- Data Preparation ---
 
   // 1. Threading Texture
-  // We flatten the 2D threading array into a 1D Uint8Array (0 or 1)
-  // We'll use a LUMINANCE texture.
-  const threadingData = new Uint8Array(threadingWidth * threadingHeight);
+  // We use RGBA format for maximum compatibility
+  const threadingData = new Uint8Array(threadingWidth * threadingHeight * 4);
   for (let y = 0; y < threadingHeight; y++) {
     for (let x = 0; x < threadingWidth; x++) {
-      threadingData[y * threadingWidth + x] = threading[y][x] ? 255 : 0;
+      const idx = (y * threadingWidth + x) * 4;
+      const val = threading[y][x] ? 255 : 0;
+      threadingData[idx] = val;     // R
+      threadingData[idx + 1] = val; // G
+      threadingData[idx + 2] = val; // B
+      threadingData[idx + 3] = 255; // A
     }
   }
-
   // 2. Color Texture
   // We need to store two palettes: Warp and Weft.
   // We can put them in a single texture of height 2.
@@ -89,7 +98,7 @@ export function renderWebGL(element, definition, options) {
     }
   `;
 
-  const fsSource = `
+  const fsSourceSimple = `
     precision mediump float;
     
     uniform vec2 u_resolution;
@@ -104,15 +113,84 @@ export function renderWebGL(element, definition, options) {
     uniform float u_weft_count;
 
     void main() {
-      // Pixel coordinates (0.5 to width-0.5)
       vec2 pixelCoord = gl_FragCoord.xy;
-      
-      // Flip Y because WebGL 0,0 is bottom-left, but our logic assumes top-left
-      pixelCoord.y = u_resolution.y - pixelCoord.y;
-
-      // Grid coordinates
       float gridX = floor(pixelCoord.x / u_intersection_size);
-      float gridY = floor(pixelCoord.y / u_intersection_size);
+      float gridY = floor((u_resolution.y - pixelCoord.y) / u_intersection_size);
+
+      float tx = mod(gridX, u_threading_size.x);
+      float ty = mod(gridY, u_threading_size.y);
+
+      vec2 tUv = (vec2(tx, ty) + 0.5) / u_threading_size;
+      float isWarp = texture2D(u_threading, tUv).r;
+
+      vec4 warpColor = vec4(texture2D(u_colors, (vec2(mod(gridX, u_warp_count), 0.0) + 0.5) / u_colors_size).rgb, 1.0);
+      vec4 weftColor = vec4(texture2D(u_colors, (vec2(mod(gridY, u_weft_count), 1.0) + 0.5) / u_colors_size).rgb, 1.0);
+
+      gl_FragColor = isWarp > 0.5 ? warpColor : weftColor;
+    }
+  `;
+
+  const fsSourceInterlacing = `
+    precision mediump float;
+    
+    uniform vec2 u_resolution;
+    uniform float u_intersection_size;
+    uniform float u_thread_thickness;
+    uniform float u_border_size;
+    uniform float u_cut_size;
+    uniform float u_mode; // 0 = simple, 1 = interlacing
+    
+    uniform sampler2D u_threading;
+    uniform vec2 u_threading_size; // width, height
+    
+    uniform sampler2D u_colors;
+    uniform vec2 u_colors_size; // width (maxColors), height (2)
+    uniform float u_warp_count;
+    uniform float u_weft_count;
+
+    const vec4 BORDER_COLOR = vec4(17.0/255.0, 17.0/255.0, 17.0/255.0, 1.0);
+
+    float sampleThread(bool isWarp, bool isTop, vec2 local, float cellSize, float topOuter) {
+      float outerThickness = u_thread_thickness + 2.0 * u_border_size;
+      float gap = isTop ? 0.0 : min(cellSize, topOuter + 2.0 * u_cut_size);
+
+      if (isWarp) {
+        float outerHalfX = outerThickness * 0.5;
+        float centerX = cellSize * 0.5;
+        float xDist = abs(local.x - centerX);
+        if (xDist > outerHalfX) return 0.0;
+
+        float segLen = max(0.0, (cellSize - gap) * 0.5);
+        bool inSeg = local.y <= segLen || local.y >= cellSize - segLen;
+        if (!isTop && !inSeg) return 0.0;
+
+        float innerHalfX = u_thread_thickness * 0.5;
+        return xDist <= innerHalfX ? 2.0 : 1.0;
+      } else {
+        float outerHalfY = outerThickness * 0.5;
+        float centerY = cellSize * 0.5;
+        float yDist = abs(local.y - centerY);
+        if (yDist > outerHalfY) return 0.0;
+
+        float segLen = max(0.0, (cellSize - gap) * 0.5);
+        bool inSeg = local.x <= segLen || local.x >= cellSize - segLen;
+        if (!isTop && !inSeg) return 0.0;
+
+        float innerHalfY = u_thread_thickness * 0.5;
+        return yDist <= innerHalfY ? 2.0 : 1.0;
+      }
+    }
+
+    void main() {
+      // Pixel coordinates - gl_FragCoord.y grows from bottom, but our reference
+      // implementations (Canvas/SVG) assume y=0 at the top. Flip Y here so
+      // grid coordinates line up with the other backends.
+      vec2 pixelCoord = gl_FragCoord.xy;
+      float gridX = floor(pixelCoord.x / u_intersection_size);
+      float gridY = floor((u_resolution.y - pixelCoord.y) / u_intersection_size);
+      float localX = mod(pixelCoord.x, u_intersection_size);
+      float localY = mod(u_resolution.y - pixelCoord.y, u_intersection_size);
+      vec2 local = vec2(localX, localY);
 
       // Threading coordinates (modulo)
       float tx = mod(gridX, u_threading_size.x);
@@ -120,26 +198,44 @@ export function renderWebGL(element, definition, options) {
 
       // Look up threading value
       // Texture coords are 0.0 to 1.0. We need to map center of texel.
-      // NOTE: Swap tx/ty because threading array is [row][col] but texture is sampled [u][v]
-      vec2 tUv = (vec2(ty, tx) + 0.5) / u_threading_size;
-      float isWarp = texture2D(u_threading, tUv).r; // > 0.5 means Warp
+      vec2 tUv = (vec2(tx, ty) + 0.5) / u_threading_size;
+      float isWarp = texture2D(u_threading, tUv).r; // Red channel for RGBA format
 
-      vec4 color;
+      vec4 warpColor = vec4(texture2D(u_colors, (vec2(mod(gridX, u_warp_count), 0.0) + 0.5) / u_colors_size).rgb, 1.0);
+      vec4 weftColor = vec4(texture2D(u_colors, (vec2(mod(gridY, u_weft_count), 1.0) + 0.5) / u_colors_size).rgb, 1.0);
+
+      if (u_mode < 0.5) {
+        gl_FragColor = isWarp > 0.5 ? warpColor : weftColor;
+        return;
+      }
+      vec4 outColor = vec4(0.0);
+      float topOuter = u_thread_thickness + 2.0 * u_border_size;
+
       if (isWarp > 0.5) {
-        // Warp Color (Row 0)
-        float cIndex = mod(gridX, u_warp_count);
-        vec2 cUv = (vec2(cIndex, 0.0) + 0.5) / u_colors_size;
-        color = texture2D(u_colors, cUv);
+        float underSample = sampleThread(false, false, local, u_intersection_size, topOuter);
+        if (underSample > 0.0) {
+          outColor = underSample == 2.0 ? weftColor : BORDER_COLOR;
+        }
+        float topSample = sampleThread(true, true, local, u_intersection_size, 0.0);
+        if (topSample > 0.0) {
+          outColor = topSample == 2.0 ? warpColor : BORDER_COLOR;
+        }
       } else {
-        // Weft Color (Row 1)
-        float cIndex = mod(gridY, u_weft_count);
-        vec2 cUv = (vec2(cIndex, 1.0) + 0.5) / u_colors_size;
-        color = texture2D(u_colors, cUv);
+        float underSample = sampleThread(true, false, local, u_intersection_size, topOuter);
+        if (underSample > 0.0) {
+          outColor = underSample == 2.0 ? warpColor : BORDER_COLOR;
+        }
+        float topSample = sampleThread(false, true, local, u_intersection_size, 0.0);
+        if (topSample > 0.0) {
+          outColor = topSample == 2.0 ? weftColor : BORDER_COLOR;
+        }
       }
 
-      gl_FragColor = color;
+      gl_FragColor = outColor;
     }
   `;
+
+  const fsSource = isInterlacing ? fsSourceInterlacing : fsSourceSimple;
 
   const program = createProgram(gl, vsSource, fsSource);
   gl.useProgram(program);
@@ -163,13 +259,29 @@ export function renderWebGL(element, definition, options) {
   gl.uniform1i(locThreadingTex, 0); // Texture unit 0
   gl.uniform1i(locColorsTex, 1);    // Texture unit 1
 
+  if (isInterlacing) {
+    const locThreadThickness = gl.getUniformLocation(program, "u_thread_thickness");
+    const locBorderSize = gl.getUniformLocation(program, "u_border_size");
+    const locCutSize = gl.getUniformLocation(program, "u_cut_size");
+    const locMode = gl.getUniformLocation(program, "u_mode");
+    gl.uniform1f(locThreadThickness, threadThickness);
+    gl.uniform1f(locBorderSize, borderSize);
+    gl.uniform1f(locCutSize, cutSize);
+    gl.uniform1f(locMode, 1);
+  }
+
   // --- Textures ---
 
   // Threading Texture (Unit 0)
   const threadingTex = gl.createTexture();
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, threadingTex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, threadingWidth, threadingHeight, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, threadingData);
+  // Use RGBA format for maximum compatibility
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, threadingWidth, threadingHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, threadingData);
+  const texError = gl.getError();
+  if (texError !== gl.NO_ERROR) {
+    console.error('WebGL error after texImage2D:', texError);
+  }
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -206,6 +318,12 @@ export function renderWebGL(element, definition, options) {
   const positionLocation = gl.getAttribLocation(program, "a_position");
   gl.enableVertexAttribArray(positionLocation);
   gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+  // Ensure textures are bound before drawing
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, threadingTex);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, colorsTex);
 
   // --- Draw ---
   gl.viewport(0, 0, width, height);

@@ -12,7 +12,7 @@ const e = React.createElement;
  * @param {Function|Array<string>} props.weftColors - Weft colors as function or array
  * @param {number} props.width - Canvas width in pixels
  * @param {number} props.height - Canvas height in pixels
- * @param {number} [props.intersectionSize=1] - Size of each intersection in pixels
+ * @param {number} [props.intersectionSize=1] - Size of each cell in pixels
  * @param {string} [props.backend='canvas'] - Rendering backend: 'canvas', 'webgl', 'webgpu', 'svg'
  * @param {string} [props.className] - CSS class for the container
  * @param {number} [props.rangeLimit=100] - Number of threads to generate for function-based colors
@@ -25,6 +25,7 @@ function WeaveCanvas(props) {
     width,
     height,
     intersectionSize = 1,
+    displayMode,
     backend = 'canvas',
     className,
     rangeLimit = 100
@@ -83,13 +84,14 @@ function WeaveCanvas(props) {
     const options = {
       width,
       height,
-      intersection_size: intersectionSize,
+      cell_size: intersectionSize,
+      display_mode: displayMode || { type: 'simple', cellSize: intersectionSize },
       backend
     };
 
     // Render the weave
     renderWeave(container, definition, options);
-  }, [threading, warpColors, weftColors, width, height, intersectionSize, backend, rangeLimit]);
+  }, [threading, warpColors, weftColors, width, height, intersectionSize, backend, rangeLimit, displayMode]);
 
   return e('div', { ref: containerRef, className });
 }

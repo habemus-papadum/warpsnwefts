@@ -5,7 +5,13 @@ import { colorToRgb } from './utils.js';
 
 export async function renderWebGPU(element, definition, options) {
   const { threading, warp_colors, weft_colors } = definition;
-  const { width, height, intersection_size = 1 } = options;
+  const displayMode = options.display_mode || options.displayMode || { type: 'simple', cellSize: options.cell_size || options.cellSize || 1 };
+  const intersection_size = displayMode.cellSize || 1;
+  const isInterlacing = displayMode.type === 'interlacing';
+  const threadThickness = isInterlacing ? (displayMode.thread_thickness ?? 6) : 0;
+  const borderSize = isInterlacing ? (displayMode.border_size ?? 1) : 0;
+  const cutSize = isInterlacing ? (displayMode.cut_size ?? 1) : 0;
+  const { width, height } = options;
 
   if (!navigator.gpu) {
     console.error("WebGPU not supported on this browser.");
@@ -80,7 +86,8 @@ export async function renderWebGPU(element, definition, options) {
   const uniformData = new Float32Array([
     width, height, intersection_size, 0, // vec4 padding
     threadingWidth, threadingHeight, 0, 0,
-    warpColorsRgb.length, weftColorsRgb.length, 0, 0
+    warpColorsRgb.length, weftColorsRgb.length, 0, 0,
+    threadThickness, borderSize, cutSize, isInterlacing ? 1 : 0,
   ]);
 
   // --- Buffers ---
@@ -109,6 +116,10 @@ export async function renderWebGPU(element, definition, options) {
         padding2 : vec2f,
         color_counts : vec2f,
         padding3 : vec2f,
+        thread_thickness : f32,
+        border_size : f32,
+        cut_size : f32,
+        mode : f32,
       }
 
       @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -118,6 +129,55 @@ export async function renderWebGPU(element, definition, options) {
 
       struct VertexOutput {
         @builtin(position) position : vec4f,
+      }
+
+      fn sampleThread(
+        isWarp: bool,
+        isTop: bool,
+        local: vec2f,
+        cellSize: f32,
+        topOuterSize: f32,
+        threadThickness: f32,
+        borderSize: f32,
+        cutSize: f32
+      ) -> f32 {
+        let outerThickness = threadThickness + 2.0 * borderSize;
+        var gap: f32;
+        if (isTop) {
+          gap = 0.0;
+        } else {
+          gap = min(cellSize, topOuterSize + 2.0 * cutSize);
+        }
+
+        if (isWarp) {
+          let outerHalfX = outerThickness * 0.5;
+          let centerX = cellSize * 0.5;
+          let xDist = abs(local.x - centerX);
+          if (xDist > outerHalfX) { return 0.0; }
+          let segLen = max(0.0, (cellSize - gap) * 0.5);
+          let inSeg = local.y <= segLen || local.y >= cellSize - segLen;
+          if (!isTop && !inSeg) { return 0.0; }
+          let innerHalfX = threadThickness * 0.5;
+          if (xDist <= innerHalfX) {
+            return 2.0;
+          } else {
+            return 1.0;
+          }
+        } else {
+          let outerHalfY = outerThickness * 0.5;
+          let centerY = cellSize * 0.5;
+          let yDist = abs(local.y - centerY);
+          if (yDist > outerHalfY) { return 0.0; }
+          let segLen = max(0.0, (cellSize - gap) * 0.5);
+          let inSeg = local.x <= segLen || local.x >= cellSize - segLen;
+          if (!isTop && !inSeg) { return 0.0; }
+          let innerHalfY = threadThickness * 0.5;
+          if (yDist <= innerHalfY) {
+            return 2.0;
+          } else {
+            return 1.0;
+          }
+        }
       }
 
       @vertex
@@ -133,30 +193,72 @@ export async function renderWebGPU(element, definition, options) {
 
       @fragment
       fn fs_main(@builtin(position) pixelCoord : vec4f) -> @location(0) vec4f {
-        // Pixel coordinates (0.5 to width-0.5)
-        // WebGPU coords are top-left 0,0? No, standard is usually top-left for window, but let's check.
-        // @builtin(position) is in framebuffer coords.
-        
         let gridX = floor(pixelCoord.x / uniforms.intersection_size);
         let gridY = floor(pixelCoord.y / uniforms.intersection_size);
+
+        let localX = pixelCoord.x % uniforms.intersection_size;
+        let localY = pixelCoord.y % uniforms.intersection_size;
 
         let tx = u32(gridX) % u32(uniforms.threading_size.x);
         let ty = u32(gridY) % u32(uniforms.threading_size.y);
         
-        // Threading index
         let tIndex = ty * u32(uniforms.threading_size.x) + tx;
-        let isWarp = threading[tIndex];
+        let isWarp = threading[tIndex] > 0u;
 
-        var color : vec4f;
-        if (isWarp > 0) {
-          let cIndex = u32(gridX) % u32(uniforms.color_counts.x);
-          color = warp_colors[cIndex];
-        } else {
-          let cIndex = u32(gridY) % u32(uniforms.color_counts.y);
-          color = weft_colors[cIndex];
+        let warpColor = warp_colors[u32(gridX) % u32(uniforms.color_counts.x)];
+        let weftColor = weft_colors[u32(gridY) % u32(uniforms.color_counts.y)];
+        let borderColor = vec4f(17.0/255.0, 17.0/255.0, 17.0/255.0, 1.0);
+        let topOuter = uniforms.thread_thickness + 2.0 * uniforms.border_size;
+
+        if (uniforms.mode < 0.5) {
+          if (isWarp) {
+            return warpColor;
+          } else {
+            return weftColor;
+          }
         }
-        
-        return color;
+
+        // sampleThread equivalent
+        var outColor : vec4f = vec4f(0.0, 0.0, 0.0, 0.0);
+        // helper for warp (vertical)
+
+        if (isWarp) {
+          let underSample = sampleThread(false, false, vec2f(localX, localY), uniforms.intersection_size, topOuter, uniforms.thread_thickness, uniforms.border_size, uniforms.cut_size);
+          if (underSample > 0.0) {
+            if (underSample == 2.0) {
+              outColor = weftColor;
+            } else {
+              outColor = borderColor;
+            }
+          }
+          let topSample = sampleThread(true, true, vec2f(localX, localY), uniforms.intersection_size, 0.0, uniforms.thread_thickness, uniforms.border_size, uniforms.cut_size);
+          if (topSample > 0.0) {
+            if (topSample == 2.0) {
+              outColor = warpColor;
+            } else {
+              outColor = borderColor;
+            }
+          }
+        } else {
+          let underSample = sampleThread(true, false, vec2f(localX, localY), uniforms.intersection_size, topOuter, uniforms.thread_thickness, uniforms.border_size, uniforms.cut_size);
+          if (underSample > 0.0) {
+            if (underSample == 2.0) {
+              outColor = warpColor;
+            } else {
+              outColor = borderColor;
+            }
+          }
+          let topSample = sampleThread(false, true, vec2f(localX, localY), uniforms.intersection_size, 0.0, uniforms.thread_thickness, uniforms.border_size, uniforms.cut_size);
+          if (topSample > 0.0) {
+            if (topSample == 2.0) {
+              outColor = weftColor;
+            } else {
+              outColor = borderColor;
+            }
+          }
+        }
+
+        return outColor;
       }
     `
   });

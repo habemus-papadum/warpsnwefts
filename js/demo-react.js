@@ -73,7 +73,7 @@ function WeaveCanvas(props) {
     const options = {
       width,
       height,
-      intersection_size: intersectionSize,
+      cell_size: intersectionSize,
       backend
     };
 
@@ -113,10 +113,10 @@ const examples = {
 
 // Main App Component
 function App() {
-  const [example, setExample] = React.useState('plain');
   const [backend, setBackend] = React.useState('canvas');
 
-  const currentExample = examples[example] || examples.plain;
+  // TEMPORARILY HARDCODE TWILL FOR TESTING
+  const currentExample = examples.twill;
 
   return e('div', null,
     // Controls
@@ -175,4 +175,3 @@ function App() {
 // Mount the app
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(e(App));
-

@@ -2,17 +2,27 @@ import { renderWeave } from './weave.js';
 import chroma from 'https://esm.sh/chroma-js';
 
 const canvasContainer = document.getElementById('canvas-container');
-const renderBtn = document.getElementById('render-btn');
 const exampleSelect = document.getElementById('example-select');
 
 const backendSelect = document.getElementById('backend-select');
+const displayModeSelect = document.getElementById('display-mode');
 const benchmarkBtn = document.getElementById('benchmark-btn');
 const benchmarkResults = document.getElementById('benchmark-results');
+const valueLabels = {
+    cellSize: document.getElementById('cell-size-val'),
+    threadThickness: document.getElementById('thread-thickness-val'),
+    borderSize: document.getElementById('border-size-val'),
+    cutSize: document.getElementById('cut-size-val'),
+    rangeLimit: document.getElementById('range-limit-val'),
+};
 
 const inputs = {
     width: document.getElementById('width'),
     height: document.getElementById('height'),
-    intersection: document.getElementById('intersection'),
+    cellSize: document.getElementById('cell-size'),
+    threadThickness: document.getElementById('thread-thickness'),
+    borderSize: document.getElementById('border-size'),
+    cutSize: document.getElementById('cut-size'),
     threading: document.getElementById('threading-func'),
     warpColors: document.getElementById('warp-colors-func'),
     weftColors: document.getElementById('weft-colors-func'),
@@ -59,18 +69,48 @@ exampleSelect.addEventListener('change', (e) => {
         inputs.threading.value = ex.threading;
         inputs.warpColors.value = ex.warpColors;
         inputs.weftColors.value = ex.weftColors;
-        if (ex.intersection) inputs.intersection.value = ex.intersection;
-        render();
+        if (ex.intersection) inputs.cellSize.value = ex.intersection;
+        debouncedRender();
     }
 });
+
+function setValueLabel(name, val) {
+    if (valueLabels[name]) valueLabels[name].textContent = val;
+}
+
+function toggleInterlacingControls() {
+    const isInterlacing = displayModeSelect.value === 'interlacing';
+    document.querySelectorAll('.interlacing-only').forEach(el => {
+        el.classList.toggle('disabled', !isInterlacing);
+        const input = el.querySelector('input');
+        if (input) input.disabled = !isInterlacing;
+    });
+}
+
+function debounce(fn, delay = 120) {
+    let t;
+    return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), delay);
+    };
+}
+
+const debouncedRender = debounce(render, 60);
 
 async function render() {
     try {
         const width = parseInt(inputs.width.value, 10);
         const height = parseInt(inputs.height.value, 10);
-        const intersectionSize = parseInt(inputs.intersection.value, 10);
+        const cellSize = parseInt(inputs.cellSize.value, 10);
         const rangeLimit = parseInt(inputs.rangeLimit.value, 10);
         const backend = backendSelect.value;
+        const displayMode = buildDisplayMode(cellSize);
+
+        setValueLabel('cellSize', cellSize);
+        setValueLabel('threadThickness', inputs.threadThickness.value);
+        setValueLabel('borderSize', inputs.borderSize.value);
+        setValueLabel('cutSize', inputs.cutSize.value);
+        setValueLabel('rangeLimit', rangeLimit);
 
         // Evaluate functions
         const threadingFunc = new Function('return ' + inputs.threading.value)();
@@ -108,8 +148,9 @@ async function render() {
         const options = {
             width,
             height,
-            intersection_size: intersectionSize,
-            backend
+            backend,
+            display_mode: displayMode,
+            cell_size: displayMode.cellSize
         };
 
         await renderWeave(canvasContainer, definition, options);
@@ -131,6 +172,7 @@ async function runBenchmark() {
     const height = 800;
     const intersectionSize = 2;
     const rangeLimit = 100;
+    const displayMode = { type: 'simple', cellSize: intersectionSize };
     
     // Generate data once
     const threadingFunc = new Function('return ' + inputs.threading.value)();
@@ -153,7 +195,7 @@ async function runBenchmark() {
     for (let j = 0; j < rows; j++) { weftColors.push(weftColorFunc(j)); }
 
     const definition = { threading, warp_colors: warpColors, weft_colors: weftColors };
-    const options = { width, height, intersection_size: intersectionSize };
+    const options = { width, height, display_mode: displayMode, cell_size: intersectionSize };
 
     // Create a hidden container for benchmarking to not disturb the UI too much
     const benchContainer = document.createElement('div');
@@ -197,9 +239,34 @@ async function runBenchmark() {
     benchmarkResults.innerHTML = html;
 }
 
-renderBtn.addEventListener('click', render);
-backendSelect.addEventListener('change', render);
+backendSelect.addEventListener('change', debouncedRender);
+displayModeSelect.addEventListener('change', () => {
+    toggleInterlacingControls();
+    debouncedRender();
+});
 benchmarkBtn.addEventListener('click', runBenchmark);
 
+['width', 'height', 'cellSize', 'threadThickness', 'borderSize', 'cutSize', 'rangeLimit'].forEach(key => {
+    inputs[key].addEventListener('input', debouncedRender);
+});
+['threading', 'warpColors', 'weftColors'].forEach(key => {
+    inputs[key].addEventListener('input', debouncedRender);
+});
+
+function buildDisplayMode(cellSize) {
+    const mode = displayModeSelect.value || 'simple';
+    if (mode === 'interlacing') {
+        return {
+            type: 'interlacing',
+            cellSize,
+            thread_thickness: parseInt(inputs.threadThickness.value, 10),
+            border_size: parseInt(inputs.borderSize.value, 10),
+            cut_size: parseInt(inputs.cutSize.value, 10)
+        };
+    }
+    return { type: 'simple', cellSize };
+}
+
 // Initial render
+toggleInterlacingControls();
 render();

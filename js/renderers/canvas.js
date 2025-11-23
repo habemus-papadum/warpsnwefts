@@ -1,9 +1,13 @@
 
+const wrapIndex = (n, mod) => ((n % mod) + mod) % mod;
+
 export function renderCanvas(element, definition, options) {
   const { threading, warp_colors, weft_colors } = definition;
-  const displayMode = options.display_mode || options.displayMode || { type: 'simple', cellSize: options.cell_size || options.cellSize || 1 };
+  const displayModeRaw = options.display_mode || options.displayMode || { type: 'simple', cellSize: options.cell_size || options.cellSize || 1 };
+  const displayMode = { ...displayModeRaw, type: (displayModeRaw.type || 'simple').toLowerCase().trim() };
   const intersection_size = displayMode.cellSize || 1;
   const { width, height } = options;
+  const zoom = options.zoom_state || { active: false };
 
   let canvas;
   if (element.tagName === 'CANVAS') {
@@ -32,11 +36,83 @@ export function renderCanvas(element, definition, options) {
     return;
   }
 
+  drawPattern(ctx, {
+    width,
+    height,
+    threading,
+    warp_colors,
+    weft_colors,
+    intersectionSize: intersection_size,
+    displayMode,
+    offsetWarp: 0,
+    offsetWeft: 0,
+  });
+
+  if (zoom.active) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(zoom.center.x, zoom.center.y, zoom.radius, 0, Math.PI * 2);
+    ctx.clip();
+    // Fill background inside loop to avoid mixing with underlying pattern
+    ctx.fillStyle = zoom.backgroundColor || 'rgba(255,255,255,1)';
+    ctx.fillRect(zoom.center.x - zoom.radius, zoom.center.y - zoom.radius, zoom.radius * 2, zoom.radius * 2);
+
+    const scaledCell = Math.max(1, Math.round(displayMode.cellSize * zoom.factor));
+    const scaledMode = displayMode.type === 'interlacing'
+      ? {
+          ...displayMode,
+          cellSize: scaledCell,
+          thread_thickness: Math.max(1, Math.round((displayMode.thread_thickness ?? 6) * zoom.factor)),
+          border_size: Math.max(0, Math.round((displayMode.border_size ?? 1) * zoom.factor)),
+          cut_size: Math.max(0, Math.round((displayMode.cut_size ?? 1) * zoom.factor)),
+        }
+      : { ...displayMode, cellSize: scaledCell };
+
+    const startWarp = Math.floor((zoom.center.x - zoom.radius) / displayMode.cellSize);
+    const startWeft = Math.floor((zoom.center.y - zoom.radius) / displayMode.cellSize);
+
+    ctx.translate(zoom.center.x - zoom.radius, zoom.center.y - zoom.radius);
+    drawPattern(ctx, {
+      width: zoom.radius * 2,
+      height: zoom.radius * 2,
+      threading,
+      warp_colors,
+      weft_colors,
+      intersectionSize: scaledCell,
+      displayMode: scaledMode,
+      offsetWarp: startWarp,
+      offsetWeft: startWeft,
+    });
+    ctx.restore();
+
+    // Border
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(zoom.center.x, zoom.center.y, zoom.radius, 0, Math.PI * 2);
+    ctx.lineWidth = zoom.borderSize;
+    ctx.strokeStyle = zoom.borderColor;
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawPattern(ctx, params) {
+  const {
+    width,
+    height,
+    threading,
+    warp_colors,
+    weft_colors,
+    intersectionSize,
+    displayMode,
+    offsetWarp,
+    offsetWeft,
+  } = params;
   const threadingHeight = threading.length;
   const threadingWidth = threading[0].length;
-  
-  const numWarps = Math.ceil(width / intersection_size);
-  const numWefts = Math.ceil(height / intersection_size);
+
+  const numWarps = Math.ceil(width / intersectionSize);
+  const numWefts = Math.ceil(height / intersectionSize);
 
   if (displayMode.type === 'interlacing') {
     renderInterlacing({
@@ -46,45 +122,44 @@ export function renderCanvas(element, definition, options) {
       threading,
       warp_colors,
       weft_colors,
-      intersectionSize: intersection_size,
+      intersectionSize,
       threadThickness: displayMode.thread_thickness ?? 6,
       borderSize: displayMode.border_size ?? 1,
       cutSize: displayMode.cut_size ?? 1,
+      offsetWarp,
+      offsetWeft,
     });
     return;
   }
 
   for (let j = 0; j < numWefts; j++) {
     for (let i = 0; i < numWarps; i++) {
-      // Map visual coordinate to threading coordinate
-      const threadY = j % threadingHeight;
-      const threadX = i % threadingWidth;
+      const threadY = wrapIndex(j + offsetWeft, threadingHeight);
+      const threadX = wrapIndex(i + offsetWarp, threadingWidth);
       
       const isWarpOnTop = threading[threadY][threadX];
       
       let color;
       if (isWarpOnTop) {
-        // Warp color
-        const colorIndex = i % warp_colors.length;
+        const colorIndex = wrapIndex(i + offsetWarp, warp_colors.length);
         color = warp_colors[colorIndex];
       } else {
-        // Weft color
-        const colorIndex = j % weft_colors.length;
+        const colorIndex = wrapIndex(j + offsetWeft, weft_colors.length);
         color = weft_colors[colorIndex];
       }
       
       ctx.fillStyle = color;
       ctx.fillRect(
-        i * intersection_size, 
-        j * intersection_size, 
-        intersection_size, 
-        intersection_size
+        i * intersectionSize, 
+        j * intersectionSize, 
+        intersectionSize, 
+        intersectionSize
       );
     }
   }
 }
 
-function renderInterlacing({ ctx, width, height, threading, warp_colors, weft_colors, intersectionSize, threadThickness, borderSize, cutSize }) {
+function renderInterlacing({ ctx, width, height, threading, warp_colors, weft_colors, intersectionSize, threadThickness, borderSize, cutSize, offsetWarp, offsetWeft }) {
   const threadingHeight = threading.length;
   const threadingWidth = threading[0].length;
   const numWarps = Math.ceil(width / intersectionSize);
@@ -96,12 +171,12 @@ function renderInterlacing({ ctx, width, height, threading, warp_colors, weft_co
       const cellX = i * intersectionSize;
       const cellY = j * intersectionSize;
 
-      const threadY = j % threadingHeight;
-      const threadX = i % threadingWidth;
+      const threadY = wrapIndex(j + offsetWeft, threadingHeight);
+      const threadX = wrapIndex(i + offsetWarp, threadingWidth);
       const isWarpOnTop = threading[threadY][threadX];
 
-      const warpColor = warp_colors[i % warp_colors.length];
-      const weftColor = weft_colors[j % weft_colors.length];
+      const warpColor = warp_colors[wrapIndex(i + offsetWarp, warp_colors.length)];
+      const weftColor = weft_colors[wrapIndex(j + offsetWeft, weft_colors.length)];
 
       if (isWarpOnTop) {
         const topOuter = threadThickness + borderSize * 2;
